@@ -4,6 +4,7 @@ from pogoda import getpogoda
 from dotenv import load_dotenv
 import os
 import sqlite3
+import time
 
 db_connection = sqlite3.connect('weather_history.db')
 cursor = db_connection.cursor()
@@ -24,17 +25,30 @@ db_connection.commit()
 #db_connection.commit() chtoby sohranit' deistvya
 
 
+while True:
+    load_dotenv()
+    KEY_POGODA=os.getenv("apikey_pogoda")
 
-load_dotenv()
-KEY_POGODA=os.getenv("apikey_pogoda")
+    my_city = find_location()
+    my_pogoda = getpogoda(city = my_city, key_pogoda = KEY_POGODA)
 
-my_city = find_location()
-my_pogoda = getpogoda(city = my_city, key_pogoda = KEY_POGODA)
+    print(f'vash gorod {my_city}i poogoda {my_pogoda}')
 
-print(f'vash gorod {my_city}i poogoda {my_pogoda}')
+    cursor.execute("SELECT temperature FROM weather WHERE city = ? ORDER BY date DESC LIMIT 1", (my_city, ))
+    last_record = cursor.fetchone()
 
-sql_query = "INSERT INTO weather (city, temperature) VALUES (?, ?)" #prosim vstavit' v tablicu v kolonki city i temperature znachenia ?
-cursor.execute(sql_query, (my_city, my_pogoda)) # peredaem dannie vmesto ?
-db_connection.commit()
-print("Данные успешно сохранены в базу!")
+    if last_record:
+        last_temp = last_record[0]
+        diff = my_pogoda - last_temp
+        print(f"с прошлого замера температура изменилась на: {diff:.2f} C")
+    else:
+        print("это первая запись для данного города")
+
+    sql_query = "INSERT INTO weather (city, temperature) VALUES (?, ?)" #prosim vstavit' v tablicu v kolonki city i temperature znachenia ?
+    cursor.execute(sql_query, (my_city, my_pogoda)) # peredaem dannie vmesto ?
+    db_connection.commit()
+    print("Данные успешно сохранены в базу!")
+    
+    time.sleep(10)
+
 db_connection.close() #zakrivaem v konce
